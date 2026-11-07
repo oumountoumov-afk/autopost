@@ -1,7 +1,8 @@
 name: Publish to TikTok
 on:
   schedule:
-    - cron: "0 15 * * *"   # UTC time. Change to your schedule.
+    - cron: "0 9 * * *"    # 12:00 Moscow (UTC+3)
+    - cron: "0 15 * * *"   # 18:00 Moscow (UTC+3)
   workflow_dispatch:
 permissions:
   contents: write

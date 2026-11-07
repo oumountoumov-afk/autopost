@@ -10,7 +10,7 @@
 3. Видео публикуются по порядку имён. После публикации они переезжают в `posted/`.
 
 ## Расписание
-Файл `.github/workflows/publish.yml`, строка `cron` (время в UTC).
+Файл `.github/workflows/publish.yml`, строки `cron` (время в UTC; сейчас 12:00 и 18:00 по Москве).
 Запустить вручную: вкладка **Actions → Publish to TikTok → Run workflow**.
 
 ## Настройки
