@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Connect TikTok</title><link rel="stylesheet" href="style.css">
+<style>.btn{display:inline-block;margin-top:12px;padding:12px 22px;background:#fe2c55;color:#fff;border:0;border-radius:6px;font-size:17px;cursor:pointer;text-decoration:none}input{width:100%;padding:10px;font-size:15px;box-sizing:border-box}</style>
+</head><body>
+<h1>Connect your TikTok account</h1>
+<p>kozyrbek autopost publishes your own videos to your TikTok account on a schedule you choose. Log in with TikTok and allow the app to post videos on your behalf.</p>
+<p>The app will request: <b>user.info.basic</b> (your name and avatar), <b>video.publish</b> (post videos to your profile), <b>video.upload</b> (send videos to your drafts).</p>
+<div id="keybox" hidden><label>Client key<br><input id="key" placeholder="TikTok client key"></label></div>
+<button class="btn" id="go">Continue with TikTok</button>
+<p><a href="index.html">Home</a> · <a href="terms.html">Terms of Service</a> · <a href="privacy.html">Privacy Policy</a></p>
+<script>
+const CLIENT_KEY = ""; // public TikTok client key
+const REDIRECT = "https://oumountoumov-afk.github.io/autopost/callback.html";
+const keyInput = document.getElementById('key');
+let saved=""; try{saved=localStorage.getItem('ck')||""}catch(e){}
+if(!CLIENT_KEY){document.getElementById('keybox').hidden=false;keyInput.value=saved;}
+document.getElementById('go').onclick=()=>{
+  const key=CLIENT_KEY||keyInput.value.trim(); if(!key){alert('Enter client key');return;}
+  try{localStorage.setItem('ck',key)}catch(e){}
+  const state=Math.random().toString(36).slice(2);
+  const u=new URL('https://www.tiktok.com/v2/auth/authorize/');
+  u.search=new URLSearchParams({client_key:key,scope:'user.info.basic,video.publish,video.upload',response_type:'code',redirect_uri:REDIRECT,state}).toString();
+  location.href=u.toString();
+};
+</script>
+</body></html>

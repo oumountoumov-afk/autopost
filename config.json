@@ -1,0 +1,9 @@
+{
+  "redirect_uri": "https://oumountoumov-afk.github.io/autopost/callback.html",
+  "privacy_level": "PUBLIC_TO_EVERYONE",
+  "disable_comment": false,
+  "disable_duet": false,
+  "disable_stitch": false,
+  "cover_timestamp_ms": 1000,
+  "default_caption": ""
+}

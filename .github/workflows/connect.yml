@@ -1,0 +1,27 @@
+name: Connect TikTok
+on:
+  workflow_dispatch:
+    inputs:
+      code:
+        description: "Authorization code from the callback page"
+        required: true
+permissions:
+  contents: write
+concurrency: autopost
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exchange code for tokens
+        env:
+          TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
+          TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+          AUTH_CODE: ${{ inputs.code }}
+        run: python3 scripts/tiktok.py connect
+      - name: Save encrypted token
+        run: |
+          git config user.name "autopost-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/token.enc
+          git commit -m "Connect TikTok account" && git push
