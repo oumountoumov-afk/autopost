@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TikTok connected</title><link rel="stylesheet" href="style.css">
+<style>#code{width:100%;font-family:monospace;font-size:14px;padding:10px;box-sizing:border-box}button{margin-top:10px;padding:10px 18px;background:#fe2c55;color:#fff;border:0;border-radius:6px;font-size:16px;cursor:pointer}</style>
+</head><body>
+<h1>kozyrbek autopost</h1>
+<div id="ok" hidden>
+<p>✅ TikTok account authorized. Copy the authorization code below to finish connecting:</p>
+<textarea id="code" rows="3" readonly></textarea>
+<button id="copy">Copy code</button> <span id="copied"></span>
+</div>
+<div id="err" hidden><p>❌ Authorization failed: <span id="msg"></span></p></div>
+<div id="none"><p>This page receives the TikTok authorization result. <a href="index.html">Home</a></p></div>
+<script>
+const q=new URLSearchParams(location.search);
+const code=q.get('code'),err=q.get('error');
+if(code){document.getElementById('none').hidden=true;document.getElementById('ok').hidden=false;document.getElementById('code').value=code;}
+else if(err){document.getElementById('none').hidden=true;document.getElementById('err').hidden=false;document.getElementById('msg').textContent=err+' '+(q.get('error_description')||'');}
+document.getElementById('copy').onclick=()=>{const t=document.getElementById('code');t.select();
+try{navigator.clipboard.writeText(t.value).then(()=>{document.getElementById('copied').textContent='Copied!'})}catch(e){document.execCommand('copy');document.getElementById('copied').textContent='Copied!'}};
+</script>
+</body></html>
