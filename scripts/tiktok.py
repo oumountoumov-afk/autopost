@@ -169,7 +169,7 @@ def publish():
         time.sleep(10)
         st = check(api("/v2/post/publish/status/fetch/", token, {"publish_id": publish_id}), "Status")
         status = st.get("status")
-        print("Status:", status)
+        print("Status:", json.dumps(st, ensure_ascii=False))
         if status == "PUBLISH_COMPLETE":
             break
         if status == "FAILED":
