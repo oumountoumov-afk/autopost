@@ -102,15 +102,91 @@ def fresh_access_token():
 
 
 # ---------- publishing ----------
+RELEASE_TAG = "queue"
+GH_API = "https://api.github.com"
+
+
+def gh(method, path):
+    token = os.environ.get("GITHUB_TOKEN", "")
+    return http(method, GH_API + path, None, {
+        "Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json",
+        "User-Agent": "autopost"}, raw=(method == "DELETE"))
+
+
+def release_assets():
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if not repo or not os.environ.get("GITHUB_TOKEN"):
+        return []
+    try:
+        rel = gh("GET", f"/repos/{repo}/releases/tags/{RELEASE_TAG}")
+    except SystemExit:
+        return []
+    return rel.get("assets", []) if isinstance(rel, dict) else []
+
+
 def next_video():
-    vids = sorted(p for p in QUEUE.iterdir() if p.suffix.lower() in VIDEO_EXT) if QUEUE.exists() else []
-    return vids[0] if vids else None
+    """Return (name, source) of the next video: local file in queue/ or asset in release 'queue'."""
+    items = []
+    if QUEUE.exists():
+        items += [(p.name, ("local", p)) for p in QUEUE.iterdir() if p.suffix.lower() in VIDEO_EXT]
+    assets = release_assets()
+    by_name = {a["name"]: a for a in assets}
+    for a in assets:
+        if Path(a["name"]).suffix.lower() in VIDEO_EXT:
+            txt = by_name.get(Path(a["name"]).stem + ".txt")
+            items.append((a["name"], ("release", a, txt)))
+    items.sort(key=lambda x: x[0].lower())
+    return items[0] if items else None
 
 
-def caption_for(video):
-    txt = video.with_suffix(".txt")
-    text = txt.read_text(encoding="utf-8").strip() if txt.exists() else CONFIG.get("default_caption", "")
-    return text[:2200]
+def download(url, dest):
+    req = urllib.request.Request(url, headers={"User-Agent": "autopost"})
+    with urllib.request.urlopen(req, timeout=600) as r, open(dest, "wb") as f:
+        while True:
+            block = r.read(8 * 1024 * 1024)
+            if not block:
+                break
+            f.write(block)
+
+
+def prepare(item):
+    """Return (video_path, caption)."""
+    name, src = item
+    if src[0] == "local":
+        video = src[1]
+        txt = video.with_suffix(".txt")
+        caption = txt.read_text(encoding="utf-8").strip() if txt.exists() else CONFIG.get("default_caption", "")
+        return video, caption[:2200]
+    _, asset, txt_asset = src
+    tmp = ROOT / ".tmp"
+    tmp.mkdir(exist_ok=True)
+    video = tmp / asset["name"]
+    print(f"Downloading {asset['name']} from release '{RELEASE_TAG}' ({asset['size']/1024/1024:.1f} MB)...")
+    download(asset["browser_download_url"], video)
+    caption = CONFIG.get("default_caption", "")
+    if txt_asset:
+        t = tmp / txt_asset["name"]
+        download(txt_asset["browser_download_url"], t)
+        caption = t.read_text(encoding="utf-8-sig").strip()
+    return video, caption[:2200]
+
+
+def finish(item, video):
+    name, src = item
+    POSTED.mkdir(exist_ok=True)
+    if src[0] == "local":
+        for p in (video, video.with_suffix(".txt")):
+            if p.exists():
+                p.rename(POSTED / p.name)
+        print(f"Done: {name} moved to posted/")
+        return
+    repo = os.environ["GITHUB_REPOSITORY"]
+    for a in (src[1], src[2]):
+        if a:
+            gh("DELETE", f"/repos/{repo}/releases/assets/{a['id']}")
+    with open(POSTED / "released.log", "a", encoding="utf-8") as f:
+        f.write(f"{time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime())}  {name}\n")
+    print(f"Done: {name} removed from release '{RELEASE_TAG}' and logged in posted/released.log")
 
 
 def upload(url, path, size, chunk_size, total):
@@ -127,13 +203,15 @@ def upload(url, path, size, chunk_size, total):
 
 
 def publish():
-    video = next_video()
-    if not video:
+    item = next_video()
+    if not item:
         print("Queue is empty, nothing to publish.")
         return
     token = fresh_access_token()
     creator = check(api("/v2/post/publish/creator_info/query/", token, {}), "Creator info")
-    print(f"Account: {creator.get('creator_nickname')} (@{creator.get('creator_username')})")
+    print(f"Account: {creator.get('creator_nickname')} (@{creator.get('creator_username')}), "
+          f"max video duration {creator.get('max_video_post_duration_sec')} s")
+    video, caption = prepare(item)
     options = creator.get("privacy_level_options", [])
     privacy = CONFIG["privacy_level"]
     if privacy not in options:
@@ -148,7 +226,7 @@ def publish():
         chunk_size = 10 * MB
         total = size // chunk_size
     post_info = {
-        "title": caption_for(video),
+        "title": caption,
         "privacy_level": privacy,
         "disable_comment": CONFIG.get("disable_comment", False) or creator.get("comment_disabled", False),
         "disable_duet": CONFIG.get("disable_duet", False) or creator.get("duet_disabled", False),
@@ -177,12 +255,7 @@ def publish():
     if status not in ("PUBLISH_COMPLETE", "SEND_TO_USER_INBOX"):
         print("Still processing on TikTok side; it should appear shortly.")
 
-    POSTED.mkdir(exist_ok=True)
-    for p in (video, video.with_suffix(".txt")):
-        if p.exists():
-            p.rename(POSTED / p.name)
-    print(f"Done: {video.name} moved to posted/")
-
+    finish(item, video)
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
